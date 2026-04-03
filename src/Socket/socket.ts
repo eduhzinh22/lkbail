@@ -306,7 +306,7 @@ export const makeSocket = (config: SocketConfig) => {
 		return usyncQuery.parseUSyncQueryResult(result)
 	}
 
-	const onWhatsApp = async (...jids) => {
+	const onWhatsApp = async (...jids: string[]) => {
 if (Array.isArray(jids[0])) jids = jids[0]
 let usyncQuery = new USyncQuery().withContactProtocol().withLIDProtocol()
 for (const jid of jids) {
