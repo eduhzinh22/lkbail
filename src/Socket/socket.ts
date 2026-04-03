@@ -84,10 +84,6 @@ export const makeSocket = (config: SocketConfig) => {
 	const generateMessageTag = () => `${uqTagId}${epoch++}`
 
 	if (printQRInTerminal) {
-		logger.warn(
-			{},
-			'⚠️ The printQRInTerminal option has been deprecated. You will no longer receive QR codes in the terminal automatically. Please listen to the connection.update event yourself and handle the QR your way. You can remove this message by removing this opttion. This message will be removed in a future version.'
-		)
 	}
 
 	const syncDisabled =
@@ -310,35 +306,28 @@ export const makeSocket = (config: SocketConfig) => {
 		return usyncQuery.parseUSyncQueryResult(result)
 	}
 
-	const onWhatsApp = async (...phoneNumber: string[]) => {
-		let usyncQuery = new USyncQuery()
-
-		let contactEnabled = false
-		for (const jid of phoneNumber) {
-			if (isLidUser(jid)) {
-				logger?.warn('LIDs are not supported with onWhatsApp')
-				continue
-			} else {
-				if (!contactEnabled) {
-					contactEnabled = true
-					usyncQuery = usyncQuery.withContactProtocol()
-				}
-
-				const phone = `+${jid.replace('+', '').split('@')[0]?.split(':')[0]}`
-				usyncQuery.withUser(new USyncUser().withPhone(phone))
-			}
-		}
-
-		if (usyncQuery.users.length === 0) {
-			return [] // return early without forcing an empty query
-		}
-
-		const results = await executeUSyncQuery(usyncQuery)
-
-		if (results) {
-			return results.list.filter(a => !!a.contact).map(({ contact, id }) => ({ jid: id, exists: contact as boolean }))
-		}
-	}
+	const onWhatsApp = async (...jids) => {
+if (Array.isArray(jids[0])) jids = jids[0]
+let usyncQuery = new USyncQuery().withContactProtocol().withLIDProtocol()
+for (const jid of jids) {
+if (!jid) continue
+if (typeof jid === "string" && jid.endsWith("@lid")) {
+usyncQuery.withUser(new USyncUser().withId(jid))
+continue
+}
+const phone = `+${jid.toString().replace('+','').split('@')[0]?.split(':')[0]}`
+usyncQuery.withUser(new USyncUser().withPhone(phone))
+}
+if (!usyncQuery.users.length) return [{ resultado: "Nenhum resultado encontrado!" }]
+const results = await executeUSyncQuery(usyncQuery)
+if (!results) return [{ resultado: "Nenhum resultado encontrado!" }]
+return results.list.map(r => ({
+jid: r.id || null,
+lid: r.lid || null,
+exists: r.contact ? true : false,
+lk: true
+}))
+}
 
 	const pnFromLIDUSync = async (jids: string[]): Promise<LIDMapping[] | undefined> => {
 		const usyncQuery = new USyncQuery().withLIDProtocol().withContext('background')
